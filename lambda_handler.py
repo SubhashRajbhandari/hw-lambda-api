@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import logging
@@ -15,42 +16,50 @@ logger.setLevel(logging.INFO)
 # Initialize Flask app
 app = create_app()
 
+
 def lambda_handler(event, context):
     """AWS Lambda handler function"""
     logger.info("Lambda handler invoked with event: %s", json.dumps(event))
-    
+
     # Get HTTP method and path from API Gateway event
     http_method = event.get('httpMethod', '')
     path = event.get('path', '')
-    
+    body = event.get('body', '')
+    if event.get('isBase64Encoded', False):
+        import base64
+        body_bytes = base64.b64decode(body)
+    else:
+        body_bytes = body.encode('utf-8') if body else b''
+
     logger.info("Processing request: %s %s", http_method, path)
-    
+
     # Convert API Gateway format to WSGI format
     environ = {
         'REQUEST_METHOD': http_method,
         'PATH_INFO': path,
         'QUERY_STRING': (
-            '&'.join(f"{k}={v}" for k, v in (event.get('queryStringParameters') or {}).items())
+            '&'.join(f"{k}={v}" for k, v in (
+                event.get('queryStringParameters') or {}).items())
             if event.get('queryStringParameters') else ''
         ),
-        'CONTENT_LENGTH': len(event.get('body') or ''),
+        'CONTENT_LENGTH': str(len(body_bytes)),
         'CONTENT_TYPE': event.get('headers', {}).get('Content-Type', ''),
         'SERVER_NAME': 'lambda',
         'SERVER_PORT': '443',
         'SERVER_PROTOCOL': 'HTTP/1.1',
         'wsgi.version': (1, 0),
         'wsgi.url_scheme': 'https',
-        'wsgi.input': event.get('body', ''),
+        'wsgi.input': io.BytesIO(body_bytes),
         'wsgi.errors': None,
         'wsgi.multithread': False,
         'wsgi.multiprocess': False,
         'wsgi.run_once': False,
     }
-    
+
     # Add headers
     for header, value in event.get('headers', {}).items():
         environ[f'HTTP_{header.replace("-", "_").upper()}'] = value
-    
+
     # Response data
     response_data = {
         'statusCode': 200,
@@ -63,28 +72,29 @@ def lambda_handler(event, context):
         'body': '',
         'isBase64Encoded': False
     }
-    
+
     # Process request with Flask app
     def start_response(status, response_headers, exc_info=None):
         """WSGI start_response function"""
         status_code = int(status.split(' ')[0])
         response_data['statusCode'] = status_code
-        
+
         for key, value in response_headers:
             response_data['headers'][key] = value
-    
+
     # Call Flask application
     try:
         logger.info("Calling Flask application")
         output = app(environ, start_response)
-        
+
         # Get response body
         response_body = b''.join(output)
-        
+
         if response_body:
             response_data['body'] = response_body.decode('utf-8')
-        
-        logger.info("Response generated with status code: %s", response_data['statusCode'])
+
+        logger.info("Response generated with status code: %s",
+                    response_data['statusCode'])
         return response_data
     except Exception as e:
         logger.error("Error processing request: %s", str(e), exc_info=True)
