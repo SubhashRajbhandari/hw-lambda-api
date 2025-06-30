@@ -120,3 +120,51 @@ def get_user_details():
             'success': False,
             'error': str(e)
         }), 500
+
+@user_bp.route('/api/users/update', methods=['POST'])
+def update_user():
+    """API endpoint to update a user's details"""
+    try:
+        data = request.get_json()
+
+        if not data or 'user_id' not in data:
+            logger.warning("Request missing user_id in payload")
+            return jsonify({
+                'success': False,
+                'error': 'user_id is required in the request body'
+            }), 400
+
+        user_id = data['user_id']
+        user = User.query.get(user_id)
+
+        if not user:
+            logger.warning(f"User with ID {user_id} not found")
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+
+        # Update fields if provided
+        if 'email' in data:
+            user.email = data['email']
+        if 'name' in data:
+            user.name = data['name']
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+        if 'user_type' in data:
+            user.user_type = data['user_type']  
+
+        user.save()
+        logger.info(f"User {user_id} updated successfully")
+
+        return jsonify({
+            'success': True,
+            'message': f'User {user_id} updated successfully',
+            'user': user.to_dict()
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating user: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
