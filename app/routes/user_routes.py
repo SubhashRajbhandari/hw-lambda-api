@@ -121,6 +121,7 @@ def get_user_details():
             'error': str(e)
         }), 500
 
+
 @user_bp.route('/api/users/update', methods=['POST'])
 def update_user():
     """API endpoint to update a user's details"""
@@ -152,7 +153,7 @@ def update_user():
         if 'phone_number' in data:
             user.phone_number = data['phone_number']
         if 'user_type' in data:
-            user.user_type = data['user_type']  
+            user.user_type = data['user_type']
 
         user.save()
         logger.info(f"User {user_id} updated successfully")
@@ -164,6 +165,87 @@ def update_user():
         }), 200
     except Exception as e:
         logger.error(f"Error updating user: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@user_bp.route('/api/isEmailRegistered', methods=['GET'])
+def is_email_registered():
+    """API endpoint to check if an email is already registered"""
+    try:
+        email = request.args.get('email')
+        if not email:
+            logger.warning("Email parameter is missing")
+            return jsonify({
+                'success': False,
+                'error': 'Email parameter is required'
+            }), 400
+
+        user = User.query.filter_by(email=email).first()
+        if user:
+            logger.info(f"Email {email} is already registered")
+            return jsonify({
+                'success': True,
+                'is_registered': True,
+                'user_type': user.user_type  # Return user_type as well
+            }), 200
+        else:
+            logger.info(f"Email {email} is not registered")
+            return jsonify({
+                'success': False,
+                'is_registered': False
+            }), 404
+    except Exception as e:
+        logger.error(f"Error checking email registration: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@user_bp.route('/api/restaurants', methods=['POST'])
+def add_restaurant():
+    """API endpoint to add a new restaurant"""
+    try:
+        data = request.get_json()
+        # Required fields for Restaurant (adjust as per your Restaurant model)
+        required_fields = [
+            'owner_user_id', 'name', 'address', 'latitude', 'longitude',
+            'phone_number', 'opening_hours'
+        ]
+        if not data or not all(field in data for field in required_fields):
+            logger.warning(
+                "Request missing required fields in payload for restaurant")
+            return jsonify({
+                'success': False,
+                'error': 'owner_user_id, name, address, latitude, longitude, phone_number, and opening_hours are required in the request body'
+            }), 400
+
+        from app.models.restaurant import Restaurant
+        new_restaurant = Restaurant(
+            owner_user_id=data['owner_user_id'],
+            name=data['name'],
+            address=data['address'],
+            latitude=data['latitude'],
+            longitude=data['longitude'],
+            phone_number=data['phone_number'],
+            opening_hours=data['opening_hours'],
+            email=data.get('email'),
+            description=data.get('description'),
+            logo_url=data.get('logo_url')
+        )
+        new_restaurant.save()
+
+        logger.info(f"Restaurant {data['name']} added successfully")
+        return jsonify({
+            'success': True,
+            'message': f"Restaurant {data['name']} added successfully",
+            'restaurant': new_restaurant.to_dict()
+        }), 201
+    except Exception as e:
+        logger.error(f"Error adding restaurant: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
