@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Install Dependencies",
+            "type": "shell",
+            "command": "pip install -r requirements.txt",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Run Flask App (Local)",
+            "type": "shell",
+            "command": "python app.py",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Package for Lambda",
+            "type": "shell",
+            "command": "pip install -t package -r requirements.txt && xcopy /E /I /Y app package\\app && copy lambda_handler.py package\\ && cd package && powershell Compress-Archive -Path * -DestinationPath ..\\deployment-package.zip -Force",
+            "problemMatcher": []
+        }
+    ]
+}
