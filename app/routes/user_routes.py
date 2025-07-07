@@ -1,39 +1,13 @@
 from flask import Blueprint, jsonify, request
 import logging
 from app.models.user import User
+from app.models.restaurant import Restaurant
+import uuid
 
 # Create a logger for this module
 logger = logging.getLogger(__name__)
 
 user_bp = Blueprint('user_bp', __name__)
-
-
-@user_bp.route('/api/users', methods=['GET'])
-def get_all_users():
-    """API endpoint to retrieve all users"""
-    try:
-        logger.info("Attempting to fetch all users")
-        users = User.query.all()
-        logger.info(f"Successfully retrieved {len(users)} users")
-        return jsonify({
-            'success': True,
-            'users': [user.to_dict() for user in users],
-            'count': len(users)
-        }), 200
-    except Exception as e:
-        logger.error(f"Error fetching users: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@user_bp.route('/api/test', methods=['GET'])
-def test_endpoint():
-    return jsonify({
-        'success': True,
-        'message': 'Hey this is a test endpoint'
-    }), 200
 
 
 @user_bp.route('/api/addUser', methods=['POST'])
@@ -205,14 +179,14 @@ def is_email_registered():
         }), 500
 
 
-@user_bp.route('/api/restaurants', methods=['POST'])
+@user_bp.route('/api/addRestaurant', methods=['POST'])
 def add_restaurant():
     """API endpoint to add a new restaurant"""
     try:
         data = request.get_json()
         # Required fields for Restaurant (adjust as per your Restaurant model)
         required_fields = [
-            'owner_user_id', 'name', 'address', 'latitude', 'longitude',
+            'name', 'address', 'latitude', 'longitude',
             'phone_number', 'opening_hours'
         ]
         if not data or not all(field in data for field in required_fields):
@@ -220,12 +194,20 @@ def add_restaurant():
                 "Request missing required fields in payload for restaurant")
             return jsonify({
                 'success': False,
-                'error': 'owner_user_id, name, address, latitude, longitude, phone_number, and opening_hours are required in the request body'
+                'error': 'name, address, latitude, longitude, phone_number, and opening_hours are required in the request body'
             }), 400
+        user_uuid = str(uuid.uuid4())
+        new_user = User(
+            user_id=user_uuid,
+            user_type='Restaurant',
+            email=data.get('email', ''),
+            name=data['name'],
+            phone_number=data.get('phone_number', '')
+        )
+        new_user.save()
 
-        from app.models.restaurant import Restaurant
         new_restaurant = Restaurant(
-            owner_user_id=data['owner_user_id'],
+            owner_user_id=user_uuid,
             name=data['name'],
             address=data['address'],
             latitude=data['latitude'],
@@ -236,6 +218,7 @@ def add_restaurant():
             description=data.get('description'),
             logo_url=data.get('logo_url')
         )
+
         new_restaurant.save()
 
         logger.info(f"Restaurant {data['name']} added successfully")
