@@ -177,7 +177,31 @@ def is_email_registered():
             'success': False,
             'error': str(e)
         }), 500
+@user_bp.route('/api/getAllUsers', methods=['GET'])
+def get_all_users():
+    """API endpoint to retrieve all users"""
+    try:
+        users = User.query.all()
+        if not users:
+            logger.info("No users found")
+            return jsonify({
+                'success': True,
+                'users': [],
+                'count': 0
+            }), 200
 
+        logger.info(f"Retrieved {len(users)} users")
+        return jsonify({
+            'success': True,
+            'users': [user.to_dict() for user in users],
+            'count': len(users)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error retrieving all users: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @user_bp.route('/api/addRestaurant', methods=['POST'])
 def add_restaurant():
