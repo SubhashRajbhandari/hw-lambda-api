@@ -42,12 +42,47 @@ def add_user():
         )
         new_user.save()
 
+        # If user_type is Restaurant, also create a Restaurant entry and a Menu entry
+        restaurant_obj = None
+        menu_obj = None
+        if user_type == 'Restaurant':
+            from app.models.restaurant import Restaurant
+            from app.models.menu import Menu
+            import uuid as uuidlib
+            restaurant_obj = Restaurant(
+                owner_user_id=new_user.user_id if hasattr(new_user, 'user_id') else new_user.id,
+                name=name,
+                address=data.get('address', ''),
+                latitude=data.get('latitude', 0.0),
+                longitude=data.get('longitude', 0.0),
+                phone_number=phone_number or '',
+                email=email,
+                description=data.get('description'),
+                logo_url=data.get('logo_url'),
+                opening_hours=data.get('opening_hours', {})
+            )
+            restaurant_obj.save()
+            # Create menu for the restaurant
+            menu_uuid = str(uuidlib.uuid4())
+            menu_obj = Menu(
+                menu_id=menu_uuid,
+                restaurant_id=restaurant_obj.restaurant_id,
+                name=restaurant_obj.name,
+                description=f"{restaurant_obj.name} menu"
+            )
+            menu_obj.save()
+
         logger.info(f"User {name} added successfully with type: {user_type}")
-        return jsonify({
+        response = {
             'success': True,
             'message': f'User {name} added successfully',
             'user': new_user.to_dict()
-        }), 201
+        }
+        if restaurant_obj:
+            response['restaurant'] = restaurant_obj.to_dict()
+        if menu_obj:
+            response['menu'] = menu_obj.to_dict()
+        return jsonify(response), 201
     except Exception as e:
         logger.error(f"Error adding user: {str(e)}")
         return jsonify({
@@ -220,6 +255,8 @@ def add_restaurant():
                 'success': False,
                 'error': 'name, address, latitude, longitude, phone_number, and opening_hours are required in the request body'
             }), 400
+        # Create user first
+        from app.models.user import User
         user_uuid = str(uuid.uuid4())
         new_user = User(
             user_id=user_uuid,
@@ -230,6 +267,9 @@ def add_restaurant():
         )
         new_user.save()
 
+        # Now create restaurant
+        from app.models.menu import Menu
+        import uuid as uuidlib
         new_restaurant = Restaurant(
             owner_user_id=user_uuid,
             name=data['name'],
@@ -242,14 +282,24 @@ def add_restaurant():
             description=data.get('description'),
             logo_url=data.get('logo_url')
         )
-
         new_restaurant.save()
+        # Create menu for the restaurant
+        menu_uuid = str(uuidlib.uuid4())
+        new_menu = Menu(
+            menu_id=menu_uuid,
+            restaurant_id=new_restaurant.restaurant_id,
+            name=new_restaurant.name,
+            description=f"{new_restaurant.name} menu"
+        )
+        new_menu.save()
 
-        logger.info(f"Restaurant {data['name']} added successfully")
+        logger.info(f"Restaurant {data['name']} and user created successfully")
         return jsonify({
             'success': True,
-            'message': f"Restaurant {data['name']} added successfully",
-            'restaurant': new_restaurant.to_dict()
+            'message': f"Restaurant {data['name']} and user added successfully",
+            'restaurant': new_restaurant.to_dict(),
+            'user': new_user.to_dict(),
+            'menu': new_menu.to_dict()
         }), 201
     except Exception as e:
         logger.error(f"Error adding restaurant: {str(e)}")
