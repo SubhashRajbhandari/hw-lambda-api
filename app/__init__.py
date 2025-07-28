@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def create_app():
     """Initialize the Flask application"""
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
     
     # Configure SQLAlchemy with Aurora DB connection
     app.config['SQLALCHEMY_DATABASE_URI'] = (

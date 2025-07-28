@@ -28,7 +28,7 @@ logger.info(f"Connecting to database: {db_uri}")
 # Create the app
 app = create_app()
 
-# Create database tables
+# Create database tables (temporarily commented out for troubleshooting startup hang)
 try:
     with app.app_context():
         logger.info("Creating database tables if they don't exist")
