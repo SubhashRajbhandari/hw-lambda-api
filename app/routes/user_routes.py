@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import logging
 from app.models.user import User
+from app.models.menu import Menu
 from app.models.restaurant import Restaurant
 import uuid
 
@@ -50,7 +51,8 @@ def add_user():
             from app.models.menu import Menu
             import uuid as uuidlib
             restaurant_obj = Restaurant(
-                owner_user_id=new_user.user_id if hasattr(new_user, 'user_id') else new_user.id,
+                owner_user_id=new_user.user_id if hasattr(
+                    new_user, 'user_id') else new_user.id,
                 name=name,
                 address=data.get('address', ''),
                 latitude=data.get('latitude', 0.0),
@@ -212,6 +214,8 @@ def is_email_registered():
             'success': False,
             'error': str(e)
         }), 500
+
+
 @user_bp.route('/api/getAllUsers', methods=['GET'])
 def get_all_users():
     """API endpoint to retrieve all users"""
@@ -237,6 +241,7 @@ def get_all_users():
             'success': False,
             'error': str(e)
         }), 500
+
 
 @user_bp.route('/api/addRestaurant', methods=['POST'])
 def add_restaurant():
@@ -303,6 +308,144 @@ def add_restaurant():
         }), 201
     except Exception as e:
         logger.error(f"Error adding restaurant: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@user_bp.route('/api/getSessionData', methods=['POST'])
+def get_session_data():
+    """API endpoint to retrieve user_id, restaurant_id, and menu_id for a logged-in user by email"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        if not email:
+            logger.warning("Email parameter is missing in payload")
+            return jsonify({
+                'success': False,
+                'error': 'Email parameter is required'
+            }), 400
+
+        # Perform the join query
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            logger.warning(f"User with email {email} not found")
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+
+        restaurant = Restaurant.query.filter_by(
+            owner_user_id=user.user_id).first()
+        menu = None
+        if restaurant:
+            menu = Menu.query.filter_by(
+                restaurant_id=restaurant.restaurant_id).first()
+
+        response = {
+            'success': True,
+            'user_id': user.user_id,
+            'restaurant_id': restaurant.restaurant_id if restaurant else None,
+            'menu_id': menu.menu_id if menu else None
+        }
+        return jsonify(response), 200
+    except Exception as e:
+        logger.error(f"Error fetching session data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@user_bp.route('/api/addMenu-items', methods=['POST'])
+def add_menu_items():
+    """API endpoint to add items to the menu"""
+    try:
+        data = request.get_json()
+
+        # Retrieve email from session cookie
+        email = data.get('email')
+        if not email:
+            logger.warning("Email is missing in session cookie")
+            return jsonify({
+                'success': False,
+                'error': 'Email is required in the session cookie'
+            }), 400
+
+        # Find user by email
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            logger.warning(f"No user found with email: {email}")
+            return jsonify({
+                'success': False,
+                'error': f"No user found with email: {email}"
+            }), 404
+
+        # Find restaurant by user_id
+        restaurant = Restaurant.query.filter_by(
+            owner_user_id=user.user_id).first()
+        if not restaurant:
+            logger.warning(f"No restaurant found for user_id: {user.user_id}")
+            return jsonify({
+                'success': False,
+                'error': f"No restaurant found for user_id: {user.user_id}"
+            }), 404
+
+        # Find menu by restaurant_id
+        menu = Menu.query.filter_by(
+            restaurant_id=restaurant.restaurant_id).first()
+        if not menu:
+            logger.warning(
+                f"No menu found for restaurant_id: {restaurant.restaurant_id}")
+            return jsonify({
+                'success': False,
+                'error': f"No menu found for restaurant_id: {restaurant.restaurant_id}"
+            }), 404
+
+        menu_id = menu.menu_id
+
+        # Validate required fields for MenuItem
+        required_fields = ['name', 'description', 'price',
+                           'category', 'image_url', 'is_available']
+        if not data or not all(field in data for field in required_fields):
+            logger.warning(
+                "Request missing required fields in payload for menu item")
+            return jsonify({
+                'success': False,
+                'error': 'name, description, price, category, image_url, and is_available are required'
+            }), 400
+
+        # Extract fields from the request payload
+        name = data['name']
+        description = data['description']
+        price = data['price']
+        category = data['category']
+        image_url = data['image_url']
+        is_available = data['is_available']
+
+        # Create a new MenuItem
+        from app.models.menu_item import MenuItem
+        new_menu_item = MenuItem(
+            menu_id=menu_id,
+            name=name,
+            description=description,
+            price=price,
+            category=category,
+            image_url=image_url,
+            is_available=is_available
+        )
+        new_menu_item.save()
+
+        logger.info(f"Menu item {name} added successfully to menu {menu_id}")
+        return jsonify({
+            'success': True,
+            'message': f'Menu item {name} added successfully',
+            'menu_item': new_menu_item.to_dict()
+        }), 201
+    except Exception as e:
+        logger.error(f"Error adding menu item: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
