@@ -200,7 +200,8 @@ def is_email_registered():
             return jsonify({
                 'success': True,
                 'is_registered': True,
-                'user_type': user.user_type  # Return user_type as well
+                'user_type': user.user_type,  # Return user_type as well
+                'user_id': user.user_id
             }), 200
         else:
             logger.info(f"Email {email} is not registered")
@@ -314,51 +315,6 @@ def add_restaurant():
         }), 500
 
 
-@user_bp.route('/api/getSessionData', methods=['POST'])
-def get_session_data():
-    """API endpoint to retrieve user_id, restaurant_id, and menu_id for a logged-in user by email"""
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        if not email:
-            logger.warning("Email parameter is missing in payload")
-            return jsonify({
-                'success': False,
-                'error': 'Email parameter is required'
-            }), 400
-
-        # Perform the join query
-
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            logger.warning(f"User with email {email} not found")
-            return jsonify({
-                'success': False,
-                'error': 'User not found'
-            }), 404
-
-        restaurant = Restaurant.query.filter_by(
-            owner_user_id=user.user_id).first()
-        menu = None
-        if restaurant:
-            menu = Menu.query.filter_by(
-                restaurant_id=restaurant.restaurant_id).first()
-
-        response = {
-            'success': True,
-            'user_id': user.user_id,
-            'restaurant_id': restaurant.restaurant_id if restaurant else None,
-            'menu_id': menu.menu_id if menu else None
-        }
-        return jsonify(response), 200
-    except Exception as e:
-        logger.error(f"Error fetching session data: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
 @user_bp.route('/api/addMenu-items', methods=['POST'])
 def add_menu_items():
     """API endpoint to add items to the menu"""
@@ -366,31 +322,16 @@ def add_menu_items():
         data = request.get_json()
 
         # Retrieve email from session cookie
-        email = data.get('email')
-        if not email:
-            logger.warning("Email is missing in session cookie")
-            return jsonify({
-                'success': False,
-                'error': 'Email is required in the session cookie'
-            }), 400
-
-        # Find user by email
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            logger.warning(f"No user found with email: {email}")
-            return jsonify({
-                'success': False,
-                'error': f"No user found with email: {email}"
-            }), 404
-
+        user_id = data.get('user_id')
+       
         # Find restaurant by user_id
         restaurant = Restaurant.query.filter_by(
-            owner_user_id=user.user_id).first()
+            owner_user_id= user_id).first()
         if not restaurant:
-            logger.warning(f"No restaurant found for user_id: {user.user_id}")
+            logger.warning(f"No restaurant found for user_id: {user_id}")
             return jsonify({
                 'success': False,
-                'error': f"No restaurant found for user_id: {user.user_id}"
+                'error': f"No restaurant found for user_id: {user_id}"
             }), 404
 
         # Find menu by restaurant_id
