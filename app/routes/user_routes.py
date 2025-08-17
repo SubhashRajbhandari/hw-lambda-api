@@ -314,6 +314,51 @@ def add_restaurant():
             'error': str(e)
         }), 500
 
+@user_bp.route('/api/menu-items', methods=['GET'])
+def get_menu_items():
+    """API endpoint to get all menu items for a restaurant"""
+    try:
+        # Get user_id from query parameter
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'user_id is required as a query parameter'
+            }), 400
+
+        # Find restaurant by user_id
+        restaurant = Restaurant.query.filter_by(owner_user_id=user_id).first()
+        if not restaurant:
+            return jsonify({
+                'success': False,
+                'error': f"No restaurant found for user_id: {user_id}"
+            }), 404
+
+        # Find menu by restaurant_id
+        menu = Menu.query.filter_by(restaurant_id=restaurant.restaurant_id).first()
+        if not menu:
+            return jsonify({
+                'success': False,
+                'error': f"No menu found for restaurant_id: {restaurant.restaurant_id}"
+            }), 404
+
+        # Get all menu items for this menu
+        from app.models.menu_item import MenuItem
+        menu_items = MenuItem.query.filter_by(menu_id=menu.menu_id).all()
+
+        logger.info(f"Found {len(menu_items)} menu items for restaurant {restaurant.name}")
+        return jsonify({
+            'success': True,
+            'menu_items': [item.to_dict() for item in menu_items],
+            'count': len(menu_items)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching menu items: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @user_bp.route('/api/addMenu-items', methods=['POST'])
 def add_menu_items():
