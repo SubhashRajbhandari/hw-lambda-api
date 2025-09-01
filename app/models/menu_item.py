@@ -6,20 +6,24 @@ import uuid
 from app import db
 from datetime import datetime
 
+
 class MenuItem(db.Model):
     __tablename__ = 'menu_item'
-    __table_args__ = {'schema': 'hataimaWaiter'}
 
-    menu_item_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    menu_id = db.Column(db.String(36), db.ForeignKey('hataimaWaiter.menu.menu_id', ondelete='CASCADE'), nullable=False)
+    menu_item_id = db.Column(
+        db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    menu_id = db.Column(db.String(36), db.ForeignKey(
+        'menu.menu_id', ondelete='CASCADE'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    price = db.Column(db.Numeric(10,2), nullable=False)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     image_url = db.Column(db.Text)
     is_available = db.Column(db.Boolean, nullable=False, default=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def save(self):
         db.session.add(self)

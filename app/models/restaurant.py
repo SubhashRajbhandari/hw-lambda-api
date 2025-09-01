@@ -6,12 +6,11 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 class Restaurant(db.Model):
     __tablename__ = 'restaurant'
-    __table_args__ = {'schema': 'hataimaWaiter'}
 
     restaurant_id = db.Column(
         db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     owner_user_id = db.Column(db.String(255), db.ForeignKey(
-        'hataimaWaiter.users.user_id', ondelete='CASCADE'), nullable=False)
+        'users.user_id', ondelete='CASCADE'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     address = db.Column(db.Text, nullable=False)
     latitude = db.Column(db.Float, nullable=False)

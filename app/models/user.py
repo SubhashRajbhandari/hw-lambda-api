@@ -7,7 +7,6 @@ from sqlalchemy.dialects.postgresql import TEXT, TIMESTAMP
 class User(db.Model):
     """User model for restaurant customers"""
     __tablename__ = 'users'
-    __table_args__ = {'schema': 'hataimaWaiter'}
 
     user_id = db.Column(db.String(36), primary_key=True,
                         default=lambda: str(uuid.uuid4()))

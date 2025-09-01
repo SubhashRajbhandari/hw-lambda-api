@@ -314,6 +314,7 @@ def add_restaurant():
             'error': str(e)
         }), 500
 
+
 @user_bp.route('/api/menu-items', methods=['GET'])
 def get_menu_items():
     """API endpoint to get all menu items for a restaurant"""
@@ -335,7 +336,8 @@ def get_menu_items():
             }), 404
 
         # Find menu by restaurant_id
-        menu = Menu.query.filter_by(restaurant_id=restaurant.restaurant_id).first()
+        menu = Menu.query.filter_by(
+            restaurant_id=restaurant.restaurant_id).first()
         if not menu:
             return jsonify({
                 'success': False,
@@ -346,7 +348,8 @@ def get_menu_items():
         from app.models.menu_item import MenuItem
         menu_items = MenuItem.query.filter_by(menu_id=menu.menu_id).all()
 
-        logger.info(f"Found {len(menu_items)} menu items for restaurant {restaurant.name}")
+        logger.info(
+            f"Found {len(menu_items)} menu items for restaurant {restaurant.name}")
         return jsonify({
             'success': True,
             'menu_items': [item.to_dict() for item in menu_items],
@@ -360,6 +363,7 @@ def get_menu_items():
             'error': str(e)
         }), 500
 
+
 @user_bp.route('/api/addMenu-items', methods=['POST'])
 def add_menu_items():
     """API endpoint to add items to the menu"""
@@ -368,10 +372,10 @@ def add_menu_items():
 
         # Retrieve email from session cookie
         user_id = data.get('user_id')
-       
+
         # Find restaurant by user_id
         restaurant = Restaurant.query.filter_by(
-            owner_user_id= user_id).first()
+            owner_user_id=user_id).first()
         if not restaurant:
             logger.warning(f"No restaurant found for user_id: {user_id}")
             return jsonify({
@@ -432,6 +436,153 @@ def add_menu_items():
         }), 201
     except Exception as e:
         logger.error(f"Error adding menu item: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@user_bp.route('/api/menu-item/update', methods=['POST'])
+def update_menu_item():
+    """API endpoint to update a menu item. Requires user_id and menu_item_id in payload."""
+    try:
+        data = request.get_json()
+        if not data or 'user_id' not in data or 'menu_item_id' not in data:
+            logger.warning(
+                "Request missing user_id or menu_item_id in payload for updating menu item")
+            return jsonify({
+                'success': False,
+                'error': 'user_id and menu_item_id are required in the request body'
+            }), 400
+
+        user_id = data['user_id']
+        menu_item_id = data['menu_item_id']
+
+        from app.models.menu_item import MenuItem
+        from app.models.menu import Menu
+        from app.models.restaurant import Restaurant
+
+        menu_item = MenuItem.query.filter_by(menu_item_id=menu_item_id).first()
+        if not menu_item:
+            logger.warning(f"Menu item with ID {menu_item_id} not found")
+            return jsonify({
+                'success': False,
+                'error': 'Menu item not found'
+            }), 404
+
+        # Verify ownership: fetch menu -> restaurant and compare owner_user_id
+        menu = Menu.query.filter_by(menu_id=menu_item.menu_id).first()
+        if not menu:
+            logger.warning(f"Menu for menu_item {menu_item_id} not found")
+            return jsonify({
+                'success': False,
+                'error': 'Associated menu not found'
+            }), 404
+
+        restaurant = Restaurant.query.filter_by(
+            restaurant_id=menu.restaurant_id).first()
+        if not restaurant or restaurant.owner_user_id != user_id:
+            logger.warning(
+                f"Unauthorized update attempt by user {user_id} for menu_item {menu_item_id}")
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized or restaurant not found'
+            }), 403
+
+        # Allowed updatable fields
+        updatable_fields = ['name', 'description', 'price',
+                            'category', 'image_url', 'is_available']
+        updated = False
+        for field in updatable_fields:
+            if field in data:
+                setattr(menu_item, field, data[field])
+                updated = True
+
+        if not updated:
+            logger.info("No updatable fields provided for menu item update")
+            return jsonify({
+                'success': False,
+                'error': 'No updatable fields provided'
+            }), 400
+
+        menu_item.save()
+        logger.info(
+            f"Menu item {menu_item_id} updated successfully by user {user_id}")
+        return jsonify({
+            'success': True,
+            'message': f'Menu item {menu_item_id} updated successfully',
+            'menu_item': menu_item.to_dict()
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating menu item: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@user_bp.route('/api/menu-item/delete', methods=['POST'])
+def delete_menu_item():
+    """API endpoint to delete a menu item. Requires user_id and menu_item_id in payload."""
+    try:
+        data = request.get_json()
+        if not data or 'user_id' not in data or 'menu_item_id' not in data:
+            logger.warning(
+                "Request missing user_id or menu_item_id in payload for deleting menu item")
+            return jsonify({
+                'success': False,
+                'error': 'user_id and menu_item_id are required in the request body'
+            }), 400
+
+        user_id = data['user_id']
+        menu_item_id = data['menu_item_id']
+
+        from app.models.menu_item import MenuItem
+        from app.models.menu import Menu
+        from app.models.restaurant import Restaurant
+
+        menu_item = MenuItem.query.filter_by(menu_item_id=menu_item_id).first()
+        if not menu_item:
+            logger.warning(f"Menu item with ID {menu_item_id} not found")
+            return jsonify({
+                'success': False,
+                'error': 'Menu item not found'
+            }), 404
+
+        menu = Menu.query.filter_by(menu_id=menu_item.menu_id).first()
+        if not menu:
+            logger.warning(f"Menu for menu_item {menu_item_id} not found")
+            return jsonify({
+                'success': False,
+                'error': 'Associated menu not found'
+            }), 404
+
+        restaurant = Restaurant.query.filter_by(
+            restaurant_id=menu.restaurant_id).first()
+        if not restaurant or restaurant.owner_user_id != user_id:
+            logger.warning(
+                f"Unauthorized delete attempt by user {user_id} for menu_item {menu_item_id}")
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized or restaurant not found'
+            }), 403
+
+        # delete helper on model expected; fallback to session delete if unavailable
+        try:
+            menu_item.delete()
+        except Exception:
+            from app import db
+            db.session.delete(menu_item)
+            db.session.commit()
+
+        logger.info(
+            f"Menu item {menu_item_id} deleted successfully by user {user_id}")
+        return jsonify({
+            'success': True,
+            'message': f'Menu item {menu_item_id} deleted successfully'
+        }), 200
+    except Exception as e:
+        logger.error(f"Error deleting menu item: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

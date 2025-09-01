@@ -2,17 +2,21 @@ import uuid
 from app import db
 from datetime import datetime
 
+
 class Menu(db.Model):
     __tablename__ = 'menu'
-    __table_args__ = {'schema': 'hataimaWaiter'}
 
-    menu_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    restaurant_id = db.Column(db.String(36), db.ForeignKey('hataimaWaiter.restaurant.restaurant_id', ondelete='CASCADE'), nullable=False)
+    menu_id = db.Column(db.String(36), primary_key=True,
+                        default=lambda: str(uuid.uuid4()))
+    restaurant_id = db.Column(db.String(36), db.ForeignKey(
+        'restaurant.restaurant_id', ondelete='CASCADE'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def save(self):
         db.session.add(self)
